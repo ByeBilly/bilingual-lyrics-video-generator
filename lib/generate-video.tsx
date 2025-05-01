@@ -2,7 +2,7 @@
 
 import { useVideoStore } from "./video-store"
 import { parseLyrics } from "./parse-lyrics"
-import { analyzeAudio, type AudioAnalysisResult } from "./audio-analyzer"
+import { analyzeAudio } from "./audio-analyzer"
 
 export async function generateVideo(audioFile: File, lyricsText: string) {
   // First, analyze the audio to detect beats and energy points
@@ -89,7 +89,7 @@ export async function generateVideo(audioFile: File, lyricsText: string) {
 
     // Get current audio data for visualization
     analyzer.getByteFrequencyData(dataArray)
-    
+
     // Calculate average energy for visualization
     let sum = 0
     for (let i = 0; i < bufferLength; i++) {
@@ -109,7 +109,7 @@ export async function generateVideo(audioFile: File, lyricsText: string) {
     }
 
     // Check if we're on a beat
-    const isOnBeat = audioAnalysis.beats.some(beat => {
+    const isOnBeat = audioAnalysis.beats.some((beat) => {
       const timeDiff = Math.abs(currentTime - beat)
       return timeDiff < 0.1 // Within 100ms of a beat
     })
@@ -138,8 +138,7 @@ export async function generateVideo(audioFile: File, lyricsText: string) {
       // Calculate progress within the current line
       const lineProgress = Math.min(
         1,
-        (currentTime - currentLyricPair.startTime) / 
-        (currentLyricPair.endTime - currentLyricPair.startTime || 1)
+        (currentTime - currentLyricPair.startTime) / (currentLyricPair.endTime - currentLyricPair.startTime || 1),
       )
 
       // Draw bouncing ball
@@ -155,17 +154,21 @@ export async function generateVideo(audioFile: File, lyricsText: string) {
 
       // Draw glow effect for the ball
       const gradient = ctx.createRadialGradient(
-        ballX, canvas.height / 2 - 90 - bounceHeight, 0,
-        ballX, canvas.height / 2 - 90 - bounceHeight, 20
+        ballX,
+        canvas.height / 2 - 90 - bounceHeight,
+        0,
+        ballX,
+        canvas.height / 2 - 90 - bounceHeight,
+        20,
       )
       gradient.addColorStop(0, "rgba(255, 107, 107, 1)")
       gradient.addColorStop(1, "rgba(255, 107, 107, 0)")
-      
+
       ctx.beginPath()
       ctx.arc(ballX, canvas.height / 2 - 90 - bounceHeight, 12, 0, Math.PI * 2)
       ctx.fillStyle = gradient
       ctx.fill()
-      
+
       // Draw the solid ball
       ctx.beginPath()
       ctx.arc(ballX, canvas.height / 2 - 90 - bounceHeight, 8, 0, Math.PI * 2)
@@ -208,37 +211,33 @@ export async function generateVideo(audioFile: File, lyricsText: string) {
 }
 
 // Function to draw audio visualization
-function drawAudioVisualization(
-  ctx: CanvasRenderingContext2D,
-  dataArray: Uint8Array,
-  width: number,
-  height: number
-) {
+function drawAudioVisualization(ctx: CanvasRenderingContext2D, dataArray: Uint8Array, width: number, height: number) {
   const barWidth = width / dataArray.length
-  
+
   // Draw bars for frequency data
   for (let i = 0; i < dataArray.length; i++) {
     const barHeight = (dataArray[i] / 255) * (height / 4)
-    
+
     // Create gradient for bars
     const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height)
     gradient.addColorStop(0, "rgba(66, 133, 244, 0.8)")
     gradient.addColorStop(1, "rgba(66, 133, 244, 0.2)")
-    
+
     ctx.fillStyle = gradient
     ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight)
   }
-  
+
   // Draw mirrored bars at the top
   for (let i = 0; i < dataArray.length; i++) {
     const barHeight = (dataArray[i] / 255) * (height / 4)
-    
+
     // Create gradient for bars
     const gradient = ctx.createLinearGradient(0, 0, 0, barHeight)
     gradient.addColorStop(0, "rgba(66, 133, 244, 0.2)")
     gradient.addColorStop(1, "rgba(66, 133, 244, 0.8)")
-    
+
     ctx.fillStyle = gradient
     ctx.fillRect(i * barWidth, 0, barWidth - 1, barHeight)
   }
 }
+

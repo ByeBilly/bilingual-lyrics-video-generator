@@ -1,52 +1,80 @@
+"use client"
+
 export interface AudioAnalysisResult {
   beats: number[]
   duration: number
 }
 
 export async function analyzeAudio(audioFile: File): Promise<AudioAnalysisResult> {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
+  return new Promise((resolve, reject) => {
+    const audioContext = new AudioContext()
+    const fileReader = new FileReader()
 
-    reader.onload = async (event) => {
-      if (!event.target?.result) {
-        resolve({ beats: [], duration: 0 })
-        return
-      }
-
-      const audioContext = new AudioContext()
+    fileReader.onload = async (event) => {
       try {
-        const audioBuffer = await audioContext.decodeAudioData(event.target.result as ArrayBuffer)
-        const duration = audioBuffer.duration
-
-        // Basic beat detection (simplified)
-        const bufferData = audioBuffer.getChannelData(0)
-        const sampleRate = audioBuffer.sampleRate
-        const threshold = 0.5 // Adjust this value
-        const minInterval = 0.1 // Minimum time between beats in seconds
-        const minSamples = minInterval * sampleRate
-
-        const beats: number[] = []
-        let lastBeatTime = -minInterval
-
-        for (let i = 0; i < bufferData.length; i++) {
-          if (bufferData[i] > threshold && i / sampleRate > lastBeatTime + minInterval) {
-            beats.push(i / sampleRate)
-            lastBeatTime = i / sampleRate
-          }
+        if (!event.target?.result) {
+          throw new Error("Failed to read audio file")
         }
 
-        resolve({ beats: beats, duration: duration })
+        // Decode the audio data
+        const arrayBuffer = event.target.result as ArrayBuffer
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+
+        // Get audio data for analysis
+        const audioData = audioBuffer.getChannelData(0)
+        const duration = audioBuffer.duration
+
+        // Detect beats using a simple energy-based algorithm
+        const beats = detectBeats(audioData, audioBuffer.sampleRate)
+
+        resolve({
+          beats,
+          duration,
+        })
       } catch (error) {
-        console.error("Error decoding audio data", error)
-        resolve({ beats: [], duration: 0 })
+        reject(error)
       }
     }
 
-    reader.onerror = (error) => {
-      console.error("Error reading audio file", error)
-      resolve({ beats: [], duration: 0 })
+    fileReader.onerror = () => {
+      reject(new Error("Error reading audio file"))
     }
 
-    reader.readAsArrayBuffer(audioFile)
+    fileReader.readAsArrayBuffer(audioFile)
   })
 }
+
+function detectBeats(audioData: Float32Array, sampleRate: number): number[] {
+  const beats: number[] = []
+
+  // Parameters for beat detection
+  const frameSize = 1024
+  const hopSize = 512
+  const energyThreshold = 0.01
+  const minBeatInterval = 0.3 // Minimum time between beats in seconds
+
+  let lastBeatTime = -minBeatInterval
+
+  // Calculate the energy of each frame
+  for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
+    let energy = 0
+
+    // Calculate energy in this frame
+    for (let j = 0; j < frameSize; j++) {
+      energy += audioData[i + j] * audioData[i + j]
+    }
+    energy /= frameSize
+
+    // Convert frame index to time
+    const currentTime = i / sampleRate
+
+    // Check if this is a beat
+    if (energy > energyThreshold && currentTime - lastBeatTime >= minBeatInterval) {
+      beats.push(currentTime)
+      lastBeatTime = currentTime
+    }
+  }
+
+  return beats
+}
+
